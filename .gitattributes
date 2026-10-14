@@ -1,0 +1,4 @@
+# Everything ships to a Linux appliance; keep LF on every platform so a
+# Windows clone never hands FMOS a CRLF setup.sh.
+* text=auto eol=lf
+*.zip binary
