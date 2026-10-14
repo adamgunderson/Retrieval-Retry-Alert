@@ -31,6 +31,8 @@ class RetryConfig:
     exclude_name_contains: tuple
     ignore_child_devices: bool = True
     ignore_manual_devices: bool = True
+    # Parent deviceTypes whose children are skipped. Upper-cased.
+    ignore_children_of: tuple = ('CLOUD_PROVIDER',)
 
 
 @dataclass
@@ -181,6 +183,8 @@ def load_config(config_path):
         exclude_name_contains=exclude_name_contains,
         ignore_child_devices=_get_bool(parser, 'retry', 'ignore_child_devices', default=True),
         ignore_manual_devices=_get_bool(parser, 'retry', 'ignore_manual_devices', default=True),
+        ignore_children_of=tuple(
+            item.upper() for item in _get_list(parser, 'retry', 'ignore_children_of', default='CLOUD_PROVIDER')),
     )
 
     digest = DigestConfig(

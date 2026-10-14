@@ -45,5 +45,12 @@ def is_excluded(device, config, unsupported_ids, retrieval_targets=None):
     if device.id in unsupported_ids:
         return True, REASON_UNSUPPORTED
     if config.retry.ignore_child_devices and retrieval_targets and device.id in retrieval_targets:
-        return True, REASON_VIA_PARENT
+        # Only children of the configured parent types (CLOUD_PROVIDER by
+        # default). A DEVICE_MGR child -- a firewall under an FMC, Panorama
+        # or Meraki -- is retrieved individually through its manager and
+        # carries its own retrieval status, so it stays in scope. An unknown
+        # parent type is treated as in scope: never exclude on a guess.
+        parent_type = retrieval_targets[device.id][2] if len(retrieval_targets[device.id]) > 2 else ''
+        if parent_type and parent_type.upper() in config.retry.ignore_children_of:
+            return True, REASON_VIA_PARENT
     return False, None

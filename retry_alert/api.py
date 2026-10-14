@@ -165,14 +165,25 @@ class FireMonClient:
         return devices
 
     def get_retrieval_targets(self):
-        """{child_id: (target_id, target_name)} for every device whose
-        retrieval is performed by ANOTHER device -- extendedSettingsJson
-        .retrievalTargetDeviceId set and not its own id. That is every
-        cloud-provider child (Azure/AWS/GCP assets, VNETs, cloud elements),
-        every firewall managed through a Firepower Management Center, and so
-        on. Such a device never retrieves on its own: FireMon accepts a
-        manual retrieval POSTed to it (204) but the job can only fail, which
-        then shows up as a RETRIEVAL_ERROR this tool would alert on forever.
+        """{child_id: (target_id, target_name, target_device_type)} for every
+        device whose retrieval target is ANOTHER device -- extendedSettingsJson
+        .retrievalTargetDeviceId set and not its own id. Whether that means
+        the child can be retrieved individually depends on what the parent
+        is, which is why the parent's deviceType is returned and the
+        exclusion decision is left to exclusions.is_excluded:
+
+        * CLOUD_PROVIDER parent (Azure/AWS/GCP assets, VNETs, cloud elements):
+          the child has no retrieval of its own -- seen live: hundreds of
+          such children with an empty deviceStatuses list despite years of
+          successful parent retrievals. A manual retrieval POSTed to one is
+          accepted (204) but can only fail, and that failure is the
+          RETRIEVAL_ERROR this tool would then alert on forever.
+        * DEVICE_MGR parent (Firepower Management Center, Panorama, Meraki):
+          the child IS retrieved individually, through the manager -- seen
+          live: each FMC firewall carrying its own retrievalStatus entries,
+          including "Successfully retrieved configuration (Manual)". Those
+          stay in scope.
+
         Read from the paginated device list, because the health list carries
         neither extendedSettingsJson nor parents."""
         domain_id = self._config.domain_id
@@ -181,6 +192,7 @@ class FireMonClient:
         total = None
         seen = 0
         names = {}
+        types = {}
 
         while total is None or seen < total:
             path = f'/securitymanager/api/domain/{domain_id}/device?page={page}&pageSize={PAGE_SIZE}'
@@ -198,6 +210,7 @@ class FireMonClient:
                 if device_id is None:
                     continue
                 names[device_id] = entry.get('name') or f'device-{device_id}'
+                types[device_id] = ((entry.get('devicePack') or {}).get('deviceType') or '').upper()
                 settings = entry.get('extendedSettingsJson') or {}
                 target = settings.get('retrievalTargetDeviceId')
                 if target is None:
@@ -209,17 +222,21 @@ class FireMonClient:
                 if target == device_id:
                     continue
                 parent_name = ''
+                parent_type = ''
                 for parent in entry.get('parents') or []:
                     if parent.get('id') == target:
                         parent_name = parent.get('name') or ''
+                        parent_type = (parent.get('deviceType') or '').upper()
                         break
-                targets[device_id] = (target, parent_name)
+                targets[device_id] = (target, parent_name, parent_type)
             page += 1
 
-        # A parent's name is on the parent's own list entry when the child's
-        # parents[] did not carry it (or carried a different parent).
-        return {child: (target, name or names.get(target) or f'device-{target}')
-                for child, (target, name) in targets.items()}
+        # A parent's name/type come from the parent's own list entry when the
+        # child's parents[] did not carry them (or carried a different parent).
+        return {child: (target,
+                        name or names.get(target) or f'device-{target}',
+                        ptype or types.get(target, ''))
+                for child, (target, name, ptype) in targets.items()}
 
     def get_device_health(self, device_id):
         domain_id = self._config.domain_id

@@ -51,6 +51,12 @@ class TestLoadConfig(unittest.TestCase):
         path = self._write('config3.ini', MINIMAL_INI + '\n[retry]\nignore_manual_devices = false\n')
         self.assertFalse(load_config(path).retry.ignore_manual_devices)
 
+    def test_ignore_children_of_defaults_to_cloud_provider_and_is_upper_cased(self):
+        path = self._write('config.ini', MINIMAL_INI)
+        self.assertEqual(('CLOUD_PROVIDER',), load_config(path).retry.ignore_children_of)
+        path = self._write('config4.ini', MINIMAL_INI + '\n[retry]\nignore_children_of = cloud_provider, device_mgr\n')
+        self.assertEqual(('CLOUD_PROVIDER', 'DEVICE_MGR'), load_config(path).retry.ignore_children_of)
+
     def test_ignore_child_devices_defaults_on_and_can_be_disabled(self):
         path = self._write('config.ini', MINIMAL_INI)
         self.assertTrue(load_config(path).retry.ignore_child_devices)

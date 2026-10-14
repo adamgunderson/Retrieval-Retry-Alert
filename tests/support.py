@@ -24,6 +24,7 @@ def make_retry_config(state_dir, **overrides):
         exclude_name_contains=(),
         ignore_child_devices=True,
         ignore_manual_devices=True,
+        ignore_children_of=('CLOUD_PROVIDER',),
     )
     defaults.update(overrides)
     return RetryConfig(**defaults)

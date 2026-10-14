@@ -83,17 +83,21 @@ retrying them is either pointless or actively wrong:
 | Orphaned | Description contains "Orphaned by" | `ignore_orphaned` (default on) |
 | Unlicensed | No `SM` (Security Manager) license | `ignore_unlicensed` (default on) |
 | Name pattern | Device name contains a configured substring | `exclude_name_contains` (default empty) |
-| Retrieved via parent | `retrievalTargetDeviceId` points at another device: cloud assets/VNETs under a cloud-provider device, firewalls under a Firepower Management Center | `ignore_child_devices` (default on) |
+| Child of a cloud provider | `retrievalTargetDeviceId` points at a parent whose type is in `ignore_children_of` (default `CLOUD_PROVIDER`): Azure/AWS/GCP assets, VNETs, cloud elements. Firewalls under a device manager (FMC, Panorama, Meraki) are NOT excluded -- they retrieve individually through the manager | `ignore_child_devices` (default on), `ignore_children_of` |
 | Manual device | `managedType` is `MANUAL`: a synthetic router or hand-entered device. No collector, no retrieval job; a trigger answers 404 "not assigned to a data collector group" forever | `ignore_manual_devices` (default on) |
 | Unsupported | FireMon's own API says so (see below) | always on, no setting |
 
-A parent-retrieved child has no retrieval of its own. FireMon accepts a
-manual retrieval POSTed to it, but the job can only fail, and that failure is
-the `RETRIEVAL_ERROR` the tool would then report forever. Children are
-skipped (the log says how many, per parent) and the parent, which is in the
-scan in its own right, is what gets retried when it is failing or stale. This
-is read from the device list once per cycle; the health list does not carry
-it.
+A cloud-provider child has no retrieval of its own: the parent's retrieval
+is the only one there is, and such children never carry a retrieval status
+entry of their own. FireMon accepts a manual retrieval POSTed to one, but the
+job can only fail, and that failure is the `RETRIEVAL_ERROR` the tool would
+then report forever. Those children are skipped (the log says how many, per
+parent) and the parent, which is in the scan in its own right, is what gets
+retried when it is failing or stale. A firewall under a device manager is
+different: it is retrieved individually through the manager and carries its
+own retrieval status, so it stays in scope and a failing one is reported.
+Parent types and targets are read from the device list once per cycle; the
+health list does not carry them.
 
 The first five are predictable in advance, from the device's own data. The
 last isn't: nothing on a device says in advance "manual retrieval will
@@ -261,7 +265,8 @@ See `config.example.ini` -- every key is commented there. The essentials:
 | `[retry]` | `ignore_orphaned` | Skip devices FireMon has marked orphaned (description contains "Orphaned by") -- on by default. |
 | `[retry]` | `ignore_unlicensed` | Skip devices without the `SM` license -- on by default. |
 | `[retry]` | `exclude_name_contains` | Skip devices whose name contains any of these substrings (comma-separated, case-insensitive). |
-| `[retry]` | `ignore_child_devices` | Skip devices whose retrieval is done by a parent device (cloud assets, FMC-managed firewalls); the parent is retried instead -- on by default. |
+| `[retry]` | `ignore_child_devices` | Skip children of the parent types in `ignore_children_of`; the parent is retried instead -- on by default. |
+| `[retry]` | `ignore_children_of` | Parent `deviceType`s whose children are skipped. Default `CLOUD_PROVIDER` (Azure/AWS/GCP assets). Add `DEVICE_MGR` only if you also want FMC/Panorama/Meraki-managed firewalls ignored. |
 | `[retry]` | `ignore_manual_devices` | Skip hand-maintained devices (`managedType` MANUAL: synthetic routers, manual devices), which have nothing to retrieve -- on by default. |
 | `[digest]` | `interval_hours` | How often the ledger is compiled into one summary email. |
 | `[smtp]` | `recipients` | Who gets the digest email. Empty = recorded but never sent. |

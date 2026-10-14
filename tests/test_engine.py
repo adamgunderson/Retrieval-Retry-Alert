@@ -137,7 +137,7 @@ class TestNewFailures(EngineTestBase):
         child = make_device(500, 'AzReporting01', status='RETRIEVAL_ERROR',
                             timestamp=NOW - timedelta(hours=1))        # failing, but a child
         client = FakeClient([parent, child])
-        client.retrieval_targets = {500: (414, parent.name)}
+        client.retrieval_targets = {500: (414, parent.name, 'CLOUD_PROVIDER')}
 
         result = self.engine(client).run_cycle()
 
@@ -165,11 +165,23 @@ class TestNewFailures(EngineTestBase):
         child = make_device(500, 'AzReporting01', status='RETRIEVAL_ERROR',
                             timestamp=NOW - timedelta(hours=1))
         client = FakeClient([child])
-        client.retrieval_targets = {500: (414, 'parent')}
+        client.retrieval_targets = {500: (414, 'parent', 'CLOUD_PROVIDER')}
 
         self.engine(client).run_cycle()
 
         self.assertEqual([500], client.triggered)
+
+    def test_fmc_firewall_is_retried_in_its_own_right(self):
+        fmc = make_device(195, 'Cisco Firepower Management Centre', status='SUCCESS',
+                          timestamp=NOW - timedelta(hours=1))
+        ftd = make_device(236, 'AMS-FW-1120-01', status='RETRIEVAL_ERROR',
+                          timestamp=NOW - timedelta(hours=1))
+        client = FakeClient([fmc, ftd])
+        client.retrieval_targets = {236: (195, fmc.name, 'DEVICE_MGR')}
+
+        self.engine(client).run_cycle()
+
+        self.assertEqual([236], client.triggered)
 
     def test_device_list_failure_aborts_the_cycle_like_a_scan_failure(self):
         # Without the parent/child map the engine would retry every child

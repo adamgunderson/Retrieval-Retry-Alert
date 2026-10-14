@@ -71,18 +71,41 @@ class TestIsExcluded(unittest.TestCase):
         excluded, _reason = is_excluded(device, self.config, set())
         self.assertFalse(excluded)
 
-    def test_retrieved_via_parent(self):
+    def test_retrieved_via_cloud_provider_parent(self):
         # An Azure asset whose retrievalTargetDeviceId is its cloud-provider
         # parent: it has no retrieval of its own, so it is never retried.
         device = make_device(500, 'AzReporting01', status='RETRIEVAL_ERROR')
-        targets = {500: (414, 'Azure - KFD DEV - GIO Infrastructure')}
+        targets = {500: (414, 'Azure - KFD DEV - GIO Infrastructure', 'CLOUD_PROVIDER')}
+        excluded, reason = is_excluded(device, self.config, set(), targets)
+        self.assertTrue(excluded)
+        self.assertEqual(REASON_VIA_PARENT, reason)
+
+    def test_firewall_under_a_device_manager_stays_in_scope(self):
+        # An FTD under a Firepower Management Center is retrieved
+        # individually through the FMC and carries its own retrieval
+        # status -- it must NOT be excluded, or a failing firewall would
+        # go unreported while the FMC itself reports success.
+        device = make_device(236, 'AMS-FW-1120-01', status='RETRIEVAL_ERROR')
+        targets = {236: (195, 'Cisco Firepower Management Centre', 'DEVICE_MGR')}
+        excluded, _reason = is_excluded(device, self.config, set(), targets)
+        self.assertFalse(excluded)
+
+    def test_unknown_parent_type_stays_in_scope(self):
+        device = make_device(7, 'child-of-mystery', status='RETRIEVAL_ERROR')
+        targets = {7: (8, 'mystery', '')}
+        self.assertFalse(is_excluded(device, self.config, set(), targets)[0])
+
+    def test_ignore_children_of_is_configurable(self):
+        self.retry_cfg.ignore_children_of = ('CLOUD_PROVIDER', 'DEVICE_MGR')
+        device = make_device(236, 'AMS-FW-1120-01', status='RETRIEVAL_ERROR')
+        targets = {236: (195, 'FMC', 'DEVICE_MGR')}
         excluded, reason = is_excluded(device, self.config, set(), targets)
         self.assertTrue(excluded)
         self.assertEqual(REASON_VIA_PARENT, reason)
 
     def test_parent_itself_is_not_excluded_by_the_targets_map(self):
         parent = make_device(414, 'Azure - KFD DEV - GIO Infrastructure', status='RETRIEVAL_ERROR')
-        targets = {500: (414, parent.name)}
+        targets = {500: (414, parent.name, 'CLOUD_PROVIDER')}
         excluded, _reason = is_excluded(parent, self.config, set(), targets)
         self.assertFalse(excluded)
 
@@ -111,7 +134,7 @@ class TestIsExcluded(unittest.TestCase):
     def test_disabling_ignore_child_devices_stops_excluding_them(self):
         self.retry_cfg.ignore_child_devices = False
         device = make_device(500, 'AzReporting01')
-        targets = {500: (414, 'parent')}
+        targets = {500: (414, 'parent', 'CLOUD_PROVIDER')}
         excluded, _reason = is_excluded(device, self.config, set(), targets)
         self.assertFalse(excluded)
 
