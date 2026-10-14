@@ -55,3 +55,17 @@ class TestDeviceHealthFromApi(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestManagedType(unittest.TestCase):
+    def test_from_api_reads_managed_type(self):
+        from retry_alert.model import DeviceHealth
+        manual = DeviceHealth.from_api({'id': 297, 'name': 'KF-EUN-Transit-Gateway',
+                                        'managedType': 'MANUAL', 'licenses': ['SM']})
+        managed = DeviceHealth.from_api({'id': 500, 'name': 'AzReporting01',
+                                         'managedType': 'MANAGED', 'licenses': ['SM']})
+        absent = DeviceHealth.from_api({'id': 1, 'name': 'fw-a', 'licenses': ['SM']})
+        self.assertTrue(manual.is_manual)
+        self.assertFalse(managed.is_manual)
+        # A health payload without the field is treated as a normal device.
+        self.assertFalse(absent.is_manual)

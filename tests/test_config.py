@@ -45,6 +45,12 @@ class TestLoadConfig(unittest.TestCase):
         self.assertEqual(['ops@example.invalid'], config.smtp.recipients)
         self.assertTrue(config.retry.state_dir.exists())
 
+    def test_ignore_manual_devices_defaults_on_and_can_be_disabled(self):
+        path = self._write('config.ini', MINIMAL_INI)
+        self.assertTrue(load_config(path).retry.ignore_manual_devices)
+        path = self._write('config3.ini', MINIMAL_INI + '\n[retry]\nignore_manual_devices = false\n')
+        self.assertFalse(load_config(path).retry.ignore_manual_devices)
+
     def test_ignore_child_devices_defaults_on_and_can_be_disabled(self):
         path = self._write('config.ini', MINIMAL_INI)
         self.assertTrue(load_config(path).retry.ignore_child_devices)

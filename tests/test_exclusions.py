@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 from retry_alert.exclusions import (
     REASON_NAME_PATTERN, REASON_ORPHANED, REASON_UNLICENSED, REASON_UNSUPPORTED,
-    REASON_VIA_PARENT, is_excluded, matches_name_pattern,
+    REASON_MANUAL, REASON_VIA_PARENT, is_excluded, matches_name_pattern,
 )
 
 from .support import make_device, make_retry_config
@@ -90,6 +90,23 @@ class TestIsExcluded(unittest.TestCase):
         device = make_device(500, 'AzReporting01')
         self.assertFalse(is_excluded(device, self.config, set(), None)[0])
         self.assertFalse(is_excluded(device, self.config, set(), {})[0])
+
+    def test_manual_device(self):
+        # A synthetic router: managedType MANUAL, maintained by hand, no
+        # collector, no retrieval job. Its 404 on trigger is permanent.
+        device = make_device(297, 'KF-EUN-Transit-Gateway', managed_type='MANUAL')
+        excluded, reason = is_excluded(device, self.config, set())
+        self.assertTrue(excluded)
+        self.assertEqual(REASON_MANUAL, reason)
+
+    def test_managed_device_is_not_manual(self):
+        device = make_device(298, 'fw-real', managed_type='MANAGED')
+        self.assertFalse(is_excluded(device, self.config, set())[0])
+
+    def test_disabling_ignore_manual_devices_stops_excluding_them(self):
+        self.retry_cfg.ignore_manual_devices = False
+        device = make_device(297, 'KF-EUN-Transit-Gateway', managed_type='MANUAL')
+        self.assertFalse(is_excluded(device, self.config, set())[0])
 
     def test_disabling_ignore_child_devices_stops_excluding_them(self):
         self.retry_cfg.ignore_child_devices = False

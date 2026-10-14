@@ -84,6 +84,7 @@ retrying them is either pointless or actively wrong:
 | Unlicensed | No `SM` (Security Manager) license | `ignore_unlicensed` (default on) |
 | Name pattern | Device name contains a configured substring | `exclude_name_contains` (default empty) |
 | Retrieved via parent | `retrievalTargetDeviceId` points at another device: cloud assets/VNETs under a cloud-provider device, firewalls under a Firepower Management Center | `ignore_child_devices` (default on) |
+| Manual device | `managedType` is `MANUAL`: a synthetic router or hand-entered device. No collector, no retrieval job; a trigger answers 404 "not assigned to a data collector group" forever | `ignore_manual_devices` (default on) |
 | Unsupported | FireMon's own API says so (see below) | always on, no setting |
 
 A parent-retrieved child has no retrieval of its own. FireMon accepts a
@@ -94,8 +95,8 @@ scan in its own right, is what gets retried when it is failing or stale. This
 is read from the device list once per cycle; the health list does not carry
 it.
 
-The first four are predictable in advance, from the device's own data. The
-fifth isn't: nothing on a device says in advance "manual retrieval will
+The first five are predictable in advance, from the device's own data. The
+last isn't: nothing on a device says in advance "manual retrieval will
 return 400 Device does not support manual retrieval" -- that's only
 discoverable by actually trying it once. The first time a device fails that
 way, it's recorded to the digest ledger once (so you find out) and added to
@@ -261,6 +262,7 @@ See `config.example.ini` -- every key is commented there. The essentials:
 | `[retry]` | `ignore_unlicensed` | Skip devices without the `SM` license -- on by default. |
 | `[retry]` | `exclude_name_contains` | Skip devices whose name contains any of these substrings (comma-separated, case-insensitive). |
 | `[retry]` | `ignore_child_devices` | Skip devices whose retrieval is done by a parent device (cloud assets, FMC-managed firewalls); the parent is retried instead -- on by default. |
+| `[retry]` | `ignore_manual_devices` | Skip hand-maintained devices (`managedType` MANUAL: synthetic routers, manual devices), which have nothing to retrieve -- on by default. |
 | `[digest]` | `interval_hours` | How often the ledger is compiled into one summary email. |
 | `[smtp]` | `recipients` | Who gets the digest email. Empty = recorded but never sent. |
 

@@ -13,6 +13,7 @@ REASON_UNLICENSED = 'unlicensed'
 REASON_NAME_PATTERN = 'name_pattern'
 REASON_UNSUPPORTED = 'unsupported'
 REASON_VIA_PARENT = 'retrieved_via_parent'
+REASON_MANUAL = 'manual_device'
 
 
 def matches_name_pattern(name, patterns):
@@ -33,6 +34,8 @@ def is_excluded(device, config, unsupported_ids, retrieval_targets=None):
     Center. Retrying such a child directly can only produce a retrieval
     error (the child has no retrieval of its own); the parent is what gets
     retried, and it is in the scan in its own right."""
+    if config.retry.ignore_manual_devices and device.is_manual:
+        return True, REASON_MANUAL
     if config.retry.ignore_orphaned and device.is_orphaned:
         return True, REASON_ORPHANED
     if config.retry.ignore_unlicensed and device.is_unlicensed:

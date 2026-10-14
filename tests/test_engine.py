@@ -147,6 +147,19 @@ class TestNewFailures(EngineTestBase):
         self.assertNotIn(500, pending)
         self.assertEqual([], result.recorded)
 
+    def test_manual_device_is_never_triggered(self):
+        # Synthetic router: stale by months, but there is nothing to retrieve
+        # and every trigger would 404 "not assigned to a data collector group".
+        device = make_device(297, 'KF-EUN-Transit-Gateway', status='NORMALIZED',
+                             timestamp=NOW - timedelta(days=400), managed_type='MANUAL')
+        client = FakeClient([device])
+
+        result = self.engine(client).run_cycle()
+
+        self.assertEqual([], client.triggered)
+        self.assertEqual([], result.recorded)
+        self.assertEqual({}, self.state.load_pending())
+
     def test_child_exclusion_can_be_switched_off(self):
         self.retry_cfg.ignore_child_devices = False
         child = make_device(500, 'AzReporting01', status='RETRIEVAL_ERROR',

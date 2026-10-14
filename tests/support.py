@@ -6,10 +6,11 @@ from retry_alert.model import DeviceHealth
 
 
 def make_device(device_id, name, status='SUCCESS', timestamp=None, status_description='',
-                 description='', licenses=('SM',)):
+                 description='', licenses=('SM',), managed_type='MANAGED'):
     ts = timestamp or datetime(2026, 1, 1, tzinfo=timezone.utc)
     return DeviceHealth(id=device_id, name=name, status=status, status_description=status_description,
-                         timestamp=ts, description=description, licenses=tuple(licenses), raw={})
+                         timestamp=ts, description=description, licenses=tuple(licenses),
+                         managed_type=managed_type, raw={})
 
 
 def make_retry_config(state_dir, **overrides):
@@ -22,6 +23,7 @@ def make_retry_config(state_dir, **overrides):
         ignore_unlicensed=True,
         exclude_name_contains=(),
         ignore_child_devices=True,
+        ignore_manual_devices=True,
     )
     defaults.update(overrides)
     return RetryConfig(**defaults)

@@ -30,6 +30,7 @@ class RetryConfig:
     ignore_unlicensed: bool
     exclude_name_contains: tuple
     ignore_child_devices: bool = True
+    ignore_manual_devices: bool = True
 
 
 @dataclass
@@ -179,6 +180,7 @@ def load_config(config_path):
         ignore_unlicensed=_get_bool(parser, 'retry', 'ignore_unlicensed', default=True),
         exclude_name_contains=exclude_name_contains,
         ignore_child_devices=_get_bool(parser, 'retry', 'ignore_child_devices', default=True),
+        ignore_manual_devices=_get_bool(parser, 'retry', 'ignore_manual_devices', default=True),
     )
 
     digest = DigestConfig(

@@ -24,7 +24,17 @@ class DeviceHealth:
     timestamp: datetime
     description: str = ''
     licenses: tuple = field(default_factory=tuple)
+    managed_type: str = 'MANAGED'
     raw: dict = field(default_factory=dict, repr=False)
+
+    @property
+    def is_manual(self):
+        # managedType MANUAL: the configuration is maintained by hand in
+        # FireMon, never retrieved from anything -- a synthetic router, a
+        # manually-entered device. There is no collector, no retrieval job;
+        # a manual retrieval POSTed to one answers 404 "not assigned to a
+        # data collector group", every time.
+        return self.managed_type.upper() == 'MANUAL'
 
     @property
     def is_orphaned(self):
@@ -64,7 +74,8 @@ class DeviceHealth:
             status_description = latest.get('retrievalStatusDescription') or ''
 
         return cls(id=device_id, name=name, status=status, status_description=status_description,
-                    timestamp=timestamp, description=description, licenses=licenses, raw=raw)
+                    timestamp=timestamp, description=description, licenses=licenses,
+                    managed_type=raw.get('managedType') or 'MANAGED', raw=raw)
 
 
 # Why an issue is being retried/alerted on.
