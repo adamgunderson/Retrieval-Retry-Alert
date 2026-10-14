@@ -171,7 +171,8 @@ bash setup.sh verify             # then the full read-only check
 `tests/`, `run_retry_alert.py`, `run_tests.py`, `setup.sh`,
 `config.example.ini`, `VERSION`, the docs). `config.ini`, `secrets.env`,
 `state/`, `backups/` and the logs are left alone, the cron entry is not
-touched, and the replaced code is kept under `backups/code-<timestamp>/`, so
+touched, and the replaced code is kept under `backups/code-<timestamp>/`
+(only the most recent; older code backups are pruned on each update), so
 rolling back is `cp -Rp backups/code-<timestamp>/* .`. If the appliance has
 no route to github.com, download
 `https://github.com/adamgunderson/Retrieval-Retry-Alert/archive/refs/heads/main.zip`

@@ -34,7 +34,8 @@
 #                       this copy, then run the unit tests. config.ini,
 #                       secrets.env, state/, backups/ and the logs are never
 #                       touched, and the cron entry is left as it is. The
-#                       replaced code is kept under backups/code-<stamp>/.
+#                       replaced code is kept under backups/code-<stamp>/
+#                       (only the most recent one; older ones are pruned).
 #                       --check only reports whether a newer version exists.
 #                       --from FILE installs from a downloaded .tar.gz or .zip
 #                       instead, for a box with no route to GitHub.
@@ -1418,8 +1419,10 @@ do_update() {
     find "$INSTALL_DIR/retry_alert" "$INSTALL_DIR/tests" -name __pycache__ -type d -prune -exec rm -rf {} + 2>/dev/null
     rm -rf "$work"
     ok "code updated: $current -> $new_version"
-    # Keep the last few code backups only; each is a full copy of the tool.
-    ls -1dt "$INSTALL_DIR/backups"/code-* 2>/dev/null | tail -n +6 \
+    # Keep only the code this update just replaced; each backup is a full
+    # copy of the tool, and anything older than the one you can roll back to
+    # is clutter. Prunes any pile left by earlier versions too.
+    ls -1dt "$INSTALL_DIR/backups"/code-* 2>/dev/null | tail -n +2 \
         | while IFS= read -r old; do rm -rf "$old"; done
 
     head2 "Self-test"
