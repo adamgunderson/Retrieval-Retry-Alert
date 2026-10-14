@@ -1,0 +1,18 @@
+# Generated at setup/runtime -- never committed.
+config.ini
+secrets.env
+state/
+backups/
+*.log
+setup.log
+.tests.err
+.rehearsal.err
+
+__pycache__/
+*.pyc
+
+# Built locally for hand delivery; GitHub serves its own archives.
+Retrieval-Retry-Alert.zip
+# The superseded single-file original. Hardcodes a lab host and credentials;
+# kept locally for reference only, never published.
+retrieval_health_retry.py

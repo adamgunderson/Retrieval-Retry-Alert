@@ -1,0 +1,82 @@
+<html>
+<head>
+<style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; background-color: #f4f7f9; margin: 0; padding: 20px; }
+    .container { max-width: 850px; margin: auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    .header { background-color: #003366; color: white; padding: 25px; }
+    .header h1 { margin: 0; font-size: 22px; }
+    .header p { margin: 5px 0 0; opacity: 0.8; font-size: 13px; }
+
+    .stats-container { display: flex; text-align: center; border-bottom: 1px solid #eee; }
+    .stat-card { padding: 20px; flex: 1; }
+    .stat-value { font-size: 32px; font-weight: bold; color: #d9534f; display: block; }
+    .stat-label { font-size: 11px; text-transform: uppercase; color: #777; font-weight: 600; }
+    .stat-resolved .stat-value { color: #5cb85c; }
+    .stat-not-tracked .stat-value { color: #999; }
+
+    .content { padding: 25px; }
+    .section-title { font-size: 14px; font-weight: bold; margin: 28px 0 15px; color: #003366; text-transform: uppercase; letter-spacing: 1px; padding-bottom: 8px; border-bottom: 2px solid #eee; }
+    .section-title:first-child { margin-top: 0; }
+    .section-title.section-still_broken { color: #d9534f; border-bottom-color: #fbdada; }
+    .section-title.section-resolved { color: #5cb85c; border-bottom-color: #dcf2dc; }
+    .section-title.section-not_tracked { color: #999; border-bottom-color: #e6e6e6; }
+
+    .device-card { border: 1px solid #e1e4e8; border-radius: 8px; padding: 15px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+    .device-info { flex: 1.5; min-width: 180px; }
+    .device-name { font-weight: bold; color: #0056b3; font-size: 15px; }
+    .device-id { font-size: 11px; color: #999; margin-top: 2px; }
+
+    .device-status { flex: 1; text-align: center; padding: 0 10px; }
+    .badge {
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 10px;
+        font-weight: bold;
+        text-transform: uppercase;
+        white-space: nowrap;
+        display: inline-block;
+        min-width: 110px;
+    }
+    .badge-broken { border: 1px solid #d9534f; color: #d9534f; background: #fff5f5; }
+    .badge-resolved { border: 1px solid #5cb85c; color: #5cb85c; background: #f5fff5; }
+    .badge-not-tracked { border: 1px solid #999; color: #999; background: #f7f7f7; }
+
+    .error-detail { flex: 2.5; font-size: 12px; color: #555; padding-left: 20px; border-left: 1px solid #eee; }
+    .detail-item { margin-bottom: 3px; }
+</style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>FireMon Retrieval Digest</h1>
+            <p>{{since}} to {{generated_at}}</p>
+        </div>
+
+        <div class="stats-container">
+            <div class="stat-card">
+                <span class="stat-value">{{still_broken_count}}</span>
+                <span class="stat-label">Still Broken</span>
+            </div>
+            <div class="stat-card stat-resolved">
+                <span class="stat-value">{{resolved_count}}</span>
+                <span class="stat-label">Resolved</span>
+            </div>
+            <div class="stat-card stat-not-tracked">
+                <span class="stat-value">{{not_tracked_count}}</span>
+                <span class="stat-label">No Longer Tracked</span>
+            </div>
+        </div>
+
+        <div class="content">
+            {{rows}}
+        </div>
+    </div>
+    <p style="text-align: center; color: #999; font-size: 11px; margin-top: 20px;">
+        This is an automated digest from the FireMon Retrieval Retry Alert tool. Every device
+        listed here had at least one failed retry attempt during this window -- "Still Broken"
+        needs a human look, "Resolved" fixed itself, "No Longer Tracked" means the device was
+        deleted or is now excluded (orphaned, unlicensed, name pattern, or found not to support
+        manual retrieval at all).
+    </p>
+</body>
+</html>

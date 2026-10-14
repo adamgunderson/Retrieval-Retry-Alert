@@ -1,0 +1,13 @@
+FireMon Retrieval Digest
+{{since}} to {{generated_at}}
+
+{{still_broken_count}} still broken, {{resolved_count}} resolved, {{not_tracked_count}} no longer tracked
+
+{{rows}}
+
+--
+This is an automated digest from the FireMon Retrieval Retry Alert tool. Every
+device listed had at least one failed retry attempt during this window --
+"Still broken" needs a human look, "Resolved" fixed itself, "No longer
+tracked" means the device was deleted or is now excluded (orphaned, unlicensed,
+name pattern, or found not to support manual retrieval at all).
