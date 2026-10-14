@@ -21,6 +21,7 @@ def make_retry_config(state_dir, **overrides):
         ignore_orphaned=True,
         ignore_unlicensed=True,
         exclude_name_contains=(),
+        ignore_child_devices=True,
     )
     defaults.update(overrides)
     return RetryConfig(**defaults)
@@ -62,9 +63,18 @@ class FakeClient:
         self.trigger_unsupported = set()
         self.health_lookup_calls = []
         self.list_should_fail = False
+        # {child_id: (parent_id, parent_name)}, as get_retrieval_targets()
+        # returns it. Empty = every device retrieves on its own.
+        self.retrieval_targets = {}
+        self.targets_should_fail = False
 
     def set_device(self, device):
         self.devices[device.id] = device
+
+    def get_retrieval_targets(self):
+        if self.targets_should_fail:
+            raise ApiError('simulated device list failure')
+        return dict(self.retrieval_targets)
 
     def get_device_health_list(self):
         if self.list_should_fail:

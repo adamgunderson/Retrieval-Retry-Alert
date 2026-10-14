@@ -201,6 +201,8 @@ broke.
 |---|---|
 | `configure` fails at "Proving the configuration" | Bad credentials, wrong `base_url`, or the account lacks device-health read access. Check the error text -- it's the tool's own log output. |
 | Every device records a `trigger_error` on the first live run | The service account can view health but can't trigger manual retrieval. Check its role/permissions in FireMon. |
+| Azure/AWS assets, VNETs or FMC-managed firewalls show `RETRIEVAL_ERROR` after every retry and never recover | They are retrieved by their parent device, not on their own; a retry POSTed to the child can only fail. Versions before 1.2.0 did exactly that. 1.2.0 skips them (`ignore_child_devices`, on by default) and retries the parent. The log says how many were skipped, per parent. |
+| `Could not trigger manual retrieval ... 404 ... not assigned to a data collector group` | The device has no collector group in FireMon. Assign one, or add its name to `exclude_name_contains`. |
 | Digest never arrives but `cron.log` says it was sent | Mail left the tool but not the box, or the box but not the recipient -- see [Prove mail actually leaves the box](#4-prove-mail-actually-leaves-the-box). |
 | A digest goes out on nearly every cron run | `[digest] interval_hours` is set lower than you intended, or close to the cron cadence -- check `bash setup.sh status`. |
 | The same device keeps showing up every digest, never resolving | If the detail text says "does not support manual retrieval", that's expected until the fix picks it up (next cycle after this one) -- after that it should move to "No Longer Tracked" permanently. Otherwise, check whether it's genuinely retrying each cycle (`--list-pending`) or stuck for some other reason. |

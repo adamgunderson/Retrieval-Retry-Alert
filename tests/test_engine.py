@@ -128,6 +128,47 @@ class TestNewFailures(EngineTestBase):
 
         self.assertEqual([10], client.triggered)
 
+    def test_child_retrieved_via_parent_is_not_retried_but_parent_is(self):
+        # Azure children (assets, VNETs) and FMC-managed firewalls carry
+        # retrievalTargetDeviceId = parent. Retrying the child directly is
+        # accepted by FireMon but can only fail; the parent is what retrieves.
+        parent = make_device(414, 'Azure - KFD DEV', status='SUCCESS',
+                             timestamp=NOW - timedelta(hours=30))      # stale -> retried
+        child = make_device(500, 'AzReporting01', status='RETRIEVAL_ERROR',
+                            timestamp=NOW - timedelta(hours=1))        # failing, but a child
+        client = FakeClient([parent, child])
+        client.retrieval_targets = {500: (414, parent.name)}
+
+        result = self.engine(client).run_cycle()
+
+        self.assertEqual([414], client.triggered)
+        pending = self.state.load_pending()
+        self.assertIn(414, pending)
+        self.assertNotIn(500, pending)
+        self.assertEqual([], result.recorded)
+
+    def test_child_exclusion_can_be_switched_off(self):
+        self.retry_cfg.ignore_child_devices = False
+        child = make_device(500, 'AzReporting01', status='RETRIEVAL_ERROR',
+                            timestamp=NOW - timedelta(hours=1))
+        client = FakeClient([child])
+        client.retrieval_targets = {500: (414, 'parent')}
+
+        self.engine(client).run_cycle()
+
+        self.assertEqual([500], client.triggered)
+
+    def test_device_list_failure_aborts_the_cycle_like_a_scan_failure(self):
+        # Without the parent/child map the engine would retry every child
+        # and manufacture the errors it then alerts on. Fail closed.
+        client = FakeClient([make_device(1, 'fw-a', status='RETRIEVAL_ERROR',
+                                          timestamp=NOW - timedelta(hours=1))])
+        client.targets_should_fail = True
+        from retry_alert.api import ApiError
+        with self.assertRaises(ApiError):
+            self.engine(client).run_cycle()
+        self.assertEqual([], client.triggered)
+
     def test_trigger_failure_is_recorded_immediately(self):
         device = make_device(4, 'fw-d', status='RETRIEVAL_ERROR', timestamp=NOW - timedelta(hours=1))
         client = FakeClient([device])

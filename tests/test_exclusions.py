@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 from retry_alert.exclusions import (
     REASON_NAME_PATTERN, REASON_ORPHANED, REASON_UNLICENSED, REASON_UNSUPPORTED,
-    is_excluded, matches_name_pattern,
+    REASON_VIA_PARENT, is_excluded, matches_name_pattern,
 )
 
 from .support import make_device, make_retry_config
@@ -69,6 +69,33 @@ class TestIsExcluded(unittest.TestCase):
         self.retry_cfg.ignore_orphaned = False
         device = make_device(6, 'fw-e', description='Orphaned by something')
         excluded, _reason = is_excluded(device, self.config, set())
+        self.assertFalse(excluded)
+
+    def test_retrieved_via_parent(self):
+        # An Azure asset whose retrievalTargetDeviceId is its cloud-provider
+        # parent: it has no retrieval of its own, so it is never retried.
+        device = make_device(500, 'AzReporting01', status='RETRIEVAL_ERROR')
+        targets = {500: (414, 'Azure - KFD DEV - GIO Infrastructure')}
+        excluded, reason = is_excluded(device, self.config, set(), targets)
+        self.assertTrue(excluded)
+        self.assertEqual(REASON_VIA_PARENT, reason)
+
+    def test_parent_itself_is_not_excluded_by_the_targets_map(self):
+        parent = make_device(414, 'Azure - KFD DEV - GIO Infrastructure', status='RETRIEVAL_ERROR')
+        targets = {500: (414, parent.name)}
+        excluded, _reason = is_excluded(parent, self.config, set(), targets)
+        self.assertFalse(excluded)
+
+    def test_no_targets_map_means_nothing_is_parent_excluded(self):
+        device = make_device(500, 'AzReporting01')
+        self.assertFalse(is_excluded(device, self.config, set(), None)[0])
+        self.assertFalse(is_excluded(device, self.config, set(), {})[0])
+
+    def test_disabling_ignore_child_devices_stops_excluding_them(self):
+        self.retry_cfg.ignore_child_devices = False
+        device = make_device(500, 'AzReporting01')
+        targets = {500: (414, 'parent')}
+        excluded, _reason = is_excluded(device, self.config, set(), targets)
         self.assertFalse(excluded)
 
 

@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from .api import ApiError, UnsupportedDeviceError
-from .exclusions import is_excluded
+from .exclusions import REASON_VIA_PARENT, is_excluded
 from .model import (
     ALERT_RETRY_FAILED, ALERT_RETRY_TIMEOUT, ALERT_TRIGGER_ERROR, ALERT_UNSUPPORTED_DEVICE,
     REASON_FAILURE_STATUS, REASON_STALE,
@@ -200,17 +200,37 @@ class RetryAlertEngine:
         unsupported = self.state.load_unsupported()
         unsupported_ids = {int(k) for k in unsupported}
 
+        # Which devices are retrieved by a parent rather than on their own.
+        # One paginated device-list read per cycle; on a box with a cloud
+        # provider or a Firepower Management Center this is most of the
+        # estate, and retrying any of them directly only manufactures the
+        # very retrieval errors this tool would then alert on.
+        retrieval_targets = {}
+        if self.config.retry.ignore_child_devices:
+            retrieval_targets = self.client.get_retrieval_targets()
+
         scan = self.client.get_device_health_list()
         kept, excluded_by_reason, excluded_by_id = [], {}, {}
+        via_parent = {}
         for device in scan:
-            excluded, reason = is_excluded(device, self.config, unsupported_ids)
+            excluded, reason = is_excluded(device, self.config, unsupported_ids, retrieval_targets)
             if excluded:
                 excluded_by_reason.setdefault(reason, []).append(device.name)
                 excluded_by_id[device.id] = reason
+                if reason == REASON_VIA_PARENT:
+                    via_parent.setdefault(retrieval_targets[device.id][1], []).append(device.name)
             else:
                 kept.append(device)
         for reason, names in excluded_by_reason.items():
+            if reason == REASON_VIA_PARENT:
+                continue
             logger.info('Ignoring %d device(s) excluded (%s): %s', len(names), reason, ', '.join(names))
+        for parent_name, names in sorted(via_parent.items()):
+            # Hundreds of names is not useful at INFO; the parent is.
+            logger.info('Ignoring %d device(s) retrieved via their parent "%s" -- a child has no '
+                        'retrieval of its own; the parent is retried when it needs it.',
+                        len(names), parent_name)
+            logger.debug('  via "%s": %s', parent_name, ', '.join(names))
         scan = kept
         scan_by_id = {d.id: d for d in scan}
 
@@ -252,7 +272,7 @@ class RetryAlertEngine:
                             device_id, retry.device_name)
                 del pending[device_id]
                 continue
-            excluded, reason = is_excluded(current, self.config, unsupported_ids)
+            excluded, reason = is_excluded(current, self.config, unsupported_ids, retrieval_targets)
             if excluded:
                 logger.info('Device %s (%s) is now excluded (%s) -- clearing pending retry without alerting.',
                             device_id, retry.device_name, reason)

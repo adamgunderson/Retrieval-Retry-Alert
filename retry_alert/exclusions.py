@@ -12,6 +12,7 @@ REASON_ORPHANED = 'orphaned'
 REASON_UNLICENSED = 'unlicensed'
 REASON_NAME_PATTERN = 'name_pattern'
 REASON_UNSUPPORTED = 'unsupported'
+REASON_VIA_PARENT = 'retrieved_via_parent'
 
 
 def matches_name_pattern(name, patterns):
@@ -21,11 +22,17 @@ def matches_name_pattern(name, patterns):
     return any(p.lower() in name_lower for p in patterns if p)
 
 
-def is_excluded(device, config, unsupported_ids):
+def is_excluded(device, config, unsupported_ids, retrieval_targets=None):
     """Returns (excluded: bool, reason: str|None). `unsupported_ids` is a set
     of device ids learned at runtime (StateStore.load_unsupported) -- devices
     whose own data gives no advance signal that manual retrieval will fail,
-    discovered only after trying it once."""
+    discovered only after trying it once. `retrieval_targets` is
+    FireMonClient.get_retrieval_targets(): {child_id: (parent_id, name)} for
+    devices whose retrieval is done by a parent device -- cloud assets/VNETs
+    under a cloud-provider device, firewalls under a Firepower Management
+    Center. Retrying such a child directly can only produce a retrieval
+    error (the child has no retrieval of its own); the parent is what gets
+    retried, and it is in the scan in its own right."""
     if config.retry.ignore_orphaned and device.is_orphaned:
         return True, REASON_ORPHANED
     if config.retry.ignore_unlicensed and device.is_unlicensed:
@@ -34,4 +41,6 @@ def is_excluded(device, config, unsupported_ids):
         return True, REASON_NAME_PATTERN
     if device.id in unsupported_ids:
         return True, REASON_UNSUPPORTED
+    if config.retry.ignore_child_devices and retrieval_targets and device.id in retrieval_targets:
+        return True, REASON_VIA_PARENT
     return False, None

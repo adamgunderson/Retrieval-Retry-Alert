@@ -62,6 +62,17 @@ def build_digest(client, state, config, now):
 
     unsupported_ids = {int(k) for k in state.load_unsupported()}
 
+    # Same parent/child view the engine uses, so a child that was alerted on
+    # before it was recognised as parent-retrieved reads as "no longer
+    # tracked" here, not "still broken".
+    retrieval_targets = {}
+    if current_by_id is not None and config.retry.ignore_child_devices:
+        try:
+            retrieval_targets = client.get_retrieval_targets()
+        except ApiError as e:
+            logger.warning('Could not read which devices are retrieved via a parent -- '
+                           'such devices may be listed as still broken: %s', e)
+
     summaries = []
     for device_id, device_entries in by_device.items():
         device_entries.sort(key=lambda e: e.timestamp)
@@ -71,7 +82,7 @@ def build_digest(client, state, config, now):
         if current_by_id is not None:
             current = current_by_id.get(device_id)
             if current is not None:
-                excluded, _reason = is_excluded(current, config, unsupported_ids)
+                excluded, _reason = is_excluded(current, config, unsupported_ids, retrieval_targets)
                 if excluded:
                     current_state = DIGEST_NOT_TRACKED
                 elif current.status in config.retry.failure_statuses:

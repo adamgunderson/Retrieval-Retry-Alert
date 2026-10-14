@@ -164,6 +164,63 @@ class FireMonClient:
 
         return devices
 
+    def get_retrieval_targets(self):
+        """{child_id: (target_id, target_name)} for every device whose
+        retrieval is performed by ANOTHER device -- extendedSettingsJson
+        .retrievalTargetDeviceId set and not its own id. That is every
+        cloud-provider child (Azure/AWS/GCP assets, VNETs, cloud elements),
+        every firewall managed through a Firepower Management Center, and so
+        on. Such a device never retrieves on its own: FireMon accepts a
+        manual retrieval POSTed to it (204) but the job can only fail, which
+        then shows up as a RETRIEVAL_ERROR this tool would alert on forever.
+        Read from the paginated device list, because the health list carries
+        neither extendedSettingsJson nor parents."""
+        domain_id = self._config.domain_id
+        targets = {}
+        page = 0
+        total = None
+        seen = 0
+        names = {}
+
+        while total is None or seen < total:
+            path = f'/securitymanager/api/domain/{domain_id}/device?page={page}&pageSize={PAGE_SIZE}'
+            status, raw = self._request('GET', path)
+            if status != 200:
+                raise ApiError(f'Device list failed with status {status}: {raw[:300]}')
+            data = _parse_json(raw, 'Device list')
+            results = data.get('results', [])
+            total = data.get('total', len(results))
+            if not results:
+                break
+            seen += len(results)
+            for entry in results:
+                device_id = entry.get('id')
+                if device_id is None:
+                    continue
+                names[device_id] = entry.get('name') or f'device-{device_id}'
+                settings = entry.get('extendedSettingsJson') or {}
+                target = settings.get('retrievalTargetDeviceId')
+                if target is None:
+                    continue
+                try:
+                    target = int(target)
+                except (TypeError, ValueError):
+                    continue
+                if target == device_id:
+                    continue
+                parent_name = ''
+                for parent in entry.get('parents') or []:
+                    if parent.get('id') == target:
+                        parent_name = parent.get('name') or ''
+                        break
+                targets[device_id] = (target, parent_name)
+            page += 1
+
+        # A parent's name is on the parent's own list entry when the child's
+        # parents[] did not carry it (or carried a different parent).
+        return {child: (target, name or names.get(target) or f'device-{target}')
+                for child, (target, name) in targets.items()}
+
     def get_device_health(self, device_id):
         domain_id = self._config.domain_id
         path = f'/securitymanager/api/domain/{domain_id}/device/{device_id}/health'
