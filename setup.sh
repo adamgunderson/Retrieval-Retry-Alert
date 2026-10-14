@@ -1325,39 +1325,25 @@ do_update() {
         src="$UPDATE_FROM"
         info "source:     $src"
     else
+        # Only the archive URL is used (github.com, which redirects to
+        # codeload.github.com) -- never raw.githubusercontent.com or
+        # api.github.com. A firewall that allows the archive often blocks
+        # those (seen in the field: the archive downloaded fine, the VERSION
+        # lookup on raw.githubusercontent.com timed out). The archive is
+        # ~70 KB, so even --check just downloads it and reads VERSION from it.
+        local url="https://github.com/$GITHUB_REPO/archive/refs/heads/$GITHUB_BRANCH.tar.gz"
         info "source:     https://github.com/$GITHUB_REPO ($GITHUB_BRANCH)"
         work="$(mktemp -d)"
-        if ! _fetch "https://raw.githubusercontent.com/$GITHUB_REPO/$GITHUB_BRANCH/VERSION" "$work/VERSION"; then
-            rm -rf "$work"
-            say "ERROR:   could not reach GitHub from this box."
-            say "         If it needs a proxy, export https_proxy first. Otherwise download"
-            say "         https://github.com/$GITHUB_REPO/archive/refs/heads/$GITHUB_BRANCH.zip"
-            say "         elsewhere, copy it here, and run: bash setup.sh update --from FILE"
-            exit "$EXIT_FAIL"
-        fi
-        remote="$(tr -d '[:space:]' < "$work/VERSION")"
-        info "on GitHub:  $remote"
-        if [ "$OPT_CHECK" -eq 1 ]; then
-            rm -rf "$work"
-            if [ "$remote" = "$current" ]; then
-                ok "up to date."
-            else
-                action "a different version is available. Install it with: bash setup.sh update"
-            fi
-            return 0
-        fi
-        if [ "$remote" = "$current" ]; then
-            ok "already up to date."
-            if ! confirm "Reinstall $remote over itself anyway?"; then
-                rm -rf "$work"
-                skip "left alone"
-                return 0
-            fi
-        fi
         src="$work/archive.tar.gz"
         info "downloading..."
-        _fetch "https://github.com/$GITHUB_REPO/archive/refs/heads/$GITHUB_BRANCH.tar.gz" "$src" \
-            || { rm -rf "$work"; die "the download failed."; }
+        if ! _fetch "$url" "$src"; then
+            rm -rf "$work"
+            say "ERROR:   could not download $url"
+            say "         from this box. If it needs a proxy, export https_proxy first."
+            say "         Otherwise download it elsewhere, copy it here, and run:"
+            say "         bash setup.sh update --from $GITHUB_BRANCH.tar.gz"
+            exit "$EXIT_FAIL"
+        fi
     fi
 
     [ -n "${work:-}" ] || work="$(mktemp -d)"
@@ -1365,6 +1351,27 @@ do_update() {
     new_dir="$(_unpack_archive "$src" "$work/unpacked")"
     local new_version='unknown (no VERSION file)'
     [ -s "$new_dir/VERSION" ] && new_version="$(tr -d '[:space:]' < "$new_dir/VERSION")"
+
+    if [ -z "$UPDATE_FROM" ]; then
+        info "on GitHub:  $new_version"
+        if [ "$OPT_CHECK" -eq 1 ]; then
+            rm -rf "$work"
+            if [ "$new_version" = "$current" ]; then
+                ok "up to date."
+            else
+                action "a different version is available. Install it with: bash setup.sh update"
+            fi
+            return 0
+        fi
+        if [ "$new_version" = "$current" ]; then
+            ok "already up to date."
+            if ! confirm "Reinstall $new_version over itself anyway?"; then
+                rm -rf "$work"
+                skip "left alone"
+                return 0
+            fi
+        fi
+    fi
 
     say ""
     info "about to replace:  $CODE_FILES"
