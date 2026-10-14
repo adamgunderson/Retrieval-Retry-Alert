@@ -277,7 +277,19 @@ confirm() {
     fi
     require_tty "$prompt" "(or pass --yes)"
     read -r -p "$prompt [y/N]: " answer < /dev/tty
-    case "$answer" in y|Y|yes|YES) return 0 ;; *) return 1 ;; esac
+    # Tolerate what terminals actually send: a stray CR from a client in
+    # CRLF mode, surrounding whitespace, any capitalisation.
+    local norm
+    norm="$(printf '%s' "$answer" | tr -d '\r' | tr '[:upper:]' '[:lower:]' \
+        | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+    case "$norm" in
+        y|yes) return 0 ;;
+        *)
+            # Say what was read, so "I typed y and it said no" is diagnosable
+            # rather than a mystery: an empty answer prints as ''.
+            info "read '$answer' -- not a yes, so: no"
+            return 1 ;;
+    esac
 }
 
 # ------------------------------------------------------------- validation ---
